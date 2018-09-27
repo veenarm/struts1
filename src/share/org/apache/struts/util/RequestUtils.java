@@ -1180,6 +1180,7 @@ public class RequestUtils {
         String method = request.getMethod();
         boolean isMultipart = false;
 
+        MultipartRequestHandler multipartHandler = null;
         if ((contentType != null)
             && (contentType.startsWith("multipart/form-data"))
             && (method.equalsIgnoreCase("POST"))) {
@@ -1199,13 +1200,7 @@ public class RequestUtils {
             }
 
             // Obtain a MultipartRequestHandler
-            MultipartRequestHandler multipartHandler = getMultipartHandler(request);
-
-            // Set the multipart request handler for our ActionForm.
-            // If the bean isn't an ActionForm, an exception would have been
-            // thrown earlier, so it's safe to assume that our bean is
-            // in fact an ActionForm.
-             ((ActionForm) bean).setMultipartRequestHandler(multipartHandler);
+            multipartHandler = getMultipartHandler(request);
 
             if (multipartHandler != null) {
                 isMultipart = true;
@@ -1252,7 +1247,6 @@ public class RequestUtils {
             Object parameterValue = null;
             if (isMultipart) {
                 parameterValue = multipartParameters.get(name);
-                parameterValue = rationalizeMultipleFileProperty(bean, name, parameterValue);
             } else {
                 parameterValue = request.getParameterValues(name);
             }
@@ -1282,52 +1276,6 @@ public class RequestUtils {
                 ((ActionForm) bean).setMultipartRequestHandler(multipartHandler);
             }
         }
-
-    }
-
-    /**
-     * <p>If the given form bean can accept multiple FormFile objects but the user only uploaded a single, then
-     * the property will not match the form bean type.  This method performs some simple checks to try to accommodate
-     * that situation.</p>
-     * @param bean
-     * @param name
-     * @param parameterValue
-     * @return
-     * @throws ServletException if the introspection has any errors.
-     */
-    private static Object rationalizeMultipleFileProperty(Object bean, String name, Object parameterValue) throws ServletException {
-        if (!(parameterValue instanceof FormFile)) {
-            return parameterValue;
-        }
-
-        FormFile formFileValue = (FormFile) parameterValue;
-        try {
-            Class propertyType = PropertyUtils.getPropertyType(bean, name);
-
-            if (propertyType == null) {
-                return parameterValue;
-            }
-
-            if (List.class.isAssignableFrom(propertyType)) {
-                ArrayList list = new ArrayList(1);
-                list.add(formFileValue);
-                return list;
-            }
-
-            if (propertyType.isArray() && propertyType.getComponentType().equals(FormFile.class)) {
-                return new FormFile[] { formFileValue };
-            }
-
-        } catch (IllegalAccessException e) {
-            throw new ServletException(e);
-        } catch (InvocationTargetException e) {
-            throw new ServletException(e);
-        } catch (NoSuchMethodException e) {
-            throw new ServletException(e);
-        }
-
-        // no changes
-        return parameterValue;
 
     }
 
