@@ -74,6 +74,7 @@ import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.Locale;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
@@ -105,6 +106,7 @@ import org.apache.struts.config.FormBeanConfig;
 import org.apache.struts.config.ForwardConfig;
 import org.apache.struts.config.ModuleConfig;
 import org.apache.struts.taglib.html.Constants;
+import org.apache.struts.upload.FormFile;
 import org.apache.struts.upload.MultipartRequestHandler;
 import org.apache.struts.upload.MultipartRequestWrapper;
 
@@ -127,6 +129,13 @@ public class RequestUtils {
      * Commons Logging instance.
      */
     protected static Log log = LogFactory.getLog(RequestUtils.class);
+
+    /**
+     * <p>Pattern matching 'class' access.</p>
+     */
+    protected static final Pattern CLASS_ACCESS_PATTERN = Pattern
+            .compile("(.*\\.|^|.*|\\[('|\"))class(\\.|('|\")]|\\[).*",
+                    Pattern.CASE_INSENSITIVE);
 
     /**
      * The message resources for this package.
@@ -1239,10 +1248,23 @@ public class RequestUtils {
                 }
                 stripped = stripped.substring(0, stripped.length() - suffix.length());
             }
+
+            Object parameterValue = null;
             if (isMultipart) {
-                properties.put(stripped, multipartParameters.get(name));
+                parameterValue = multipartParameters.get(name);
+                parameterValue = rationalizeMultipleFileProperty(bean, name, parameterValue);
             } else {
-                properties.put(stripped, request.getParameterValues(name));
+                parameterValue = request.getParameterValues(name);
+            }
+
+            /**
+             * Security fixes for Struts 1.1 Application
+             * stripped.startsWith("org.apache.struts.") - Fixes multiple CVE's and risks with multi-part file loading
+             * Don't populate struts attributes (e.g. 'org.apache.struts.action.CANCEL')
+             * CLASS_ACCESS_PATERN - fixes CVE-2014-0114 critical vulnerability with access for remote execution.
+             */
+            if (!(stripped.startsWith("org.apache.struts.")) && !CLASS_ACCESS_PATTERN.matcher(stripped).matches()) {
+                properties.put(stripped, parameterValue);
             }
         }
 
@@ -1251,9 +1273,64 @@ public class RequestUtils {
             BeanUtils.populate(bean, properties);
         } catch (Exception e) {
             throw new ServletException("BeanUtils.populate", e);
+        } finally {
+            if (multipartHandler != null) {
+                // Set the multipart request handler for our ActionForm.
+                // If the bean isn't an ActionForm, an exception would have been
+                // thrown earlier, so it's safe to assume that our bean is
+                // in fact an ActionForm.
+                ((ActionForm) bean).setMultipartRequestHandler(multipartHandler);
+            }
         }
 
     }
+
+    /**
+     * <p>If the given form bean can accept multiple FormFile objects but the user only uploaded a single, then
+     * the property will not match the form bean type.  This method performs some simple checks to try to accommodate
+     * that situation.</p>
+     * @param bean
+     * @param name
+     * @param parameterValue
+     * @return
+     * @throws ServletException if the introspection has any errors.
+     */
+    private static Object rationalizeMultipleFileProperty(Object bean, String name, Object parameterValue) throws ServletException {
+        if (!(parameterValue instanceof FormFile)) {
+            return parameterValue;
+        }
+
+        FormFile formFileValue = (FormFile) parameterValue;
+        try {
+            Class propertyType = PropertyUtils.getPropertyType(bean, name);
+
+            if (propertyType == null) {
+                return parameterValue;
+            }
+
+            if (List.class.isAssignableFrom(propertyType)) {
+                ArrayList list = new ArrayList(1);
+                list.add(formFileValue);
+                return list;
+            }
+
+            if (propertyType.isArray() && propertyType.getComponentType().equals(FormFile.class)) {
+                return new FormFile[] { formFileValue };
+            }
+
+        } catch (IllegalAccessException e) {
+            throw new ServletException(e);
+        } catch (InvocationTargetException e) {
+            throw new ServletException(e);
+        } catch (NoSuchMethodException e) {
+            throw new ServletException(e);
+        }
+
+        // no changes
+        return parameterValue;
+
+    }
+
 
     /**
      * Try to locate a multipart request handler for this request. First, look
