@@ -106,7 +106,6 @@ import org.apache.struts.config.FormBeanConfig;
 import org.apache.struts.config.ForwardConfig;
 import org.apache.struts.config.ModuleConfig;
 import org.apache.struts.taglib.html.Constants;
-import org.apache.struts.upload.FormFile;
 import org.apache.struts.upload.MultipartRequestHandler;
 import org.apache.struts.upload.MultipartRequestWrapper;
 
@@ -129,13 +128,6 @@ public class RequestUtils {
      * Commons Logging instance.
      */
     protected static Log log = LogFactory.getLog(RequestUtils.class);
-
-    /**
-     * <p>Pattern matching 'class' access.</p>
-     */
-    protected static final Pattern CLASS_ACCESS_PATTERN = Pattern
-            .compile("(.*\\.|^|.*|\\[('|\"))class(\\.|('|\")]|\\[).*",
-                    Pattern.CASE_INSENSITIVE);
 
     /**
      * The message resources for this package.
@@ -1251,13 +1243,9 @@ public class RequestUtils {
                 parameterValue = request.getParameterValues(name);
             }
 
-            /**
-             * Security fixes for Struts 1.1 Application
-             * stripped.startsWith("org.apache.struts.") - Fixes multiple CVE's and risks with multi-part file loading
-             * Don't populate struts attributes (e.g. 'org.apache.struts.action.CANCEL')
-             * CLASS_ACCESS_PATERN - fixes CVE-2014-0114 critical vulnerability with access for remote execution.
-             */
-            if (!(stripped.startsWith("org.apache.struts.")) && !CLASS_ACCESS_PATTERN.matcher(stripped).matches()) {
+            // Populate parameters, except "standard" struts attributes
+            // such as 'org.apache.struts.action.CANCEL'
+            if (!(stripped.startsWith("org.apache.struts."))) {
                 properties.put(stripped, parameterValue);
             }
         }
@@ -1386,20 +1374,20 @@ public class RequestUtils {
             HttpServletRequest request,
             MultipartRequestHandler multipartHandler) {
         Map parameters = new HashMap();
-        Enumeration enum;
+        Enumeration e;
 
         Hashtable elements = multipartHandler.getAllElements();
-        enum = elements.keys();
-        while (enum.hasMoreElements()) {
-            String key = (String) enum.nextElement();
+        e = elements.keys();
+        while (e.hasMoreElements()) {
+            String key = (String) e.nextElement();
             parameters.put(key, elements.get(key));
         }
 
         if (request instanceof MultipartRequestWrapper) {
             request = ((MultipartRequestWrapper)request).getRequest();
-            enum = request.getParameterNames();
-            while (enum.hasMoreElements()) {
-                String key = (String) enum.nextElement();
+            e = request.getParameterNames();
+            while (e.hasMoreElements()) {
+                String key = (String) e.nextElement();
                 parameters.put(key, request.getParameterValues(key));
             }
         } else {
