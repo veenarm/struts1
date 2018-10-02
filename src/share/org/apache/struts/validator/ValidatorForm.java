@@ -143,10 +143,15 @@ public class ValidatorForm extends ActionForm implements Serializable {
         ServletContext application = getServlet().getServletContext();
         ActionErrors errors = new ActionErrors();
 
-        Validator validator = Resources.initValidator(mapping.getAttribute(),
+        String validationKey = mapping.getAttribute();
+
+        // Author: NTT DATA Corporation
+        int validationPage = determinePage(mapping, request, page);
+
+        Validator validator = Resources.initValidator(validationKey,
                              this,
                              application, request,
-                             errors, page);
+                             errors, validationPage);
 
         try {
             validatorResults = validator.validate();

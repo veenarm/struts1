@@ -135,17 +135,18 @@ public class DynaValidatorForm extends DynaActionForm implements DynaBean, Seria
       * @return <code>ActionErrors</code> object that encapsulates any validation errors.
       */
     public ActionErrors validate(ActionMapping mapping, HttpServletRequest request) {
-        // set the page variable before validating
-        Map props = this.getMap();
-        if (props.containsKey("page")) {
-            this.page = ((Integer) props.get("page")).intValue();
-        }
+        this.setPageFromDynaProperty();
 
         ServletContext application = getServlet().getServletContext();
         ActionErrors errors = new ActionErrors();
 
+        String validationKey = mapping.getAttribute();
+
+        // Author: NTT DATA Corporation
+        int validationPage = determinePage(mapping, request, page);
+
         Validator validator =
-            Resources.initValidator(mapping.getAttribute(), this, application, request, errors, page);
+            Resources.initValidator(validationKey, this, application, request, errors, validationPage);
 
         try {
             validatorResults = validator.validate();
@@ -154,6 +155,29 @@ public class DynaValidatorForm extends DynaActionForm implements DynaBean, Seria
         }
 
         return errors;
+    }
+
+    /**
+     * Sets this.page to the value of the Dyna property "page" if it's defined.  This is
+     * used to setup the page variable before validation starts.
+     * @since Struts 1.2
+     */
+    protected void setPageFromDynaProperty() {
+        Map props = this.getMap();
+        if (props.containsKey("page")) {
+            Integer p = null;
+            try {
+                p = (Integer) props.get("page");
+            } catch (ClassCastException e) {
+                log.error("Dyna 'page' property must be of type java.lang.Integer.", e);
+                throw e;
+            }
+            if (p == null) {
+                throw new NullPointerException("Dyna 'page' property must not be null. " +
+                    " Either provide an initial value or set 'convertNull' to false. ");
+            }              
+            this.page = p.intValue();
+        }
     }
 
    /**
