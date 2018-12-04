@@ -70,10 +70,7 @@ import java.math.BigInteger;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.Enumeration;
-import java.util.Iterator;
-import java.util.MissingResourceException;
+import java.util.*;
 
 import javax.servlet.ServletException;
 import javax.servlet.UnavailableException;
@@ -83,8 +80,9 @@ import javax.servlet.http.HttpServletResponse;
 import javax.sql.DataSource;
 
 import org.apache.commons.beanutils.BeanUtils;
-import org.apache.commons.beanutils.PropertyUtils;
 import org.apache.commons.beanutils.ConvertUtils;
+import org.apache.commons.beanutils.PropertyUtils;
+import org.apache.commons.beanutils.SuppressPropertiesBeanIntrospector;
 import org.apache.commons.beanutils.converters.BigDecimalConverter;
 import org.apache.commons.beanutils.converters.BigIntegerConverter;
 import org.apache.commons.beanutils.converters.BooleanConverter;
@@ -1343,6 +1341,12 @@ public class ActionServlet extends HttpServlet {
      * @exception ServletException if we cannot initialize these resources
      */
     protected void initOther() throws ServletException {
+        HashSet suppressProperties = new HashSet();
+        suppressProperties.add("class");
+        suppressProperties.add("multipartRequestHandler");
+        suppressProperties.add("resultValueMap");
+        PropertyUtils.addBeanIntrospector(new SuppressPropertiesBeanIntrospector(suppressProperties));
+        PropertyUtils.clearDescriptors();
 
         String value = null;
         value = getServletConfig().getInitParameter("config");

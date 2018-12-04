@@ -74,6 +74,7 @@ import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.Locale;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
@@ -1171,6 +1172,7 @@ public class RequestUtils {
         String method = request.getMethod();
         boolean isMultipart = false;
 
+        MultipartRequestHandler multipartHandler = null;
         if ((contentType != null)
             && (contentType.startsWith("multipart/form-data"))
             && (method.equalsIgnoreCase("POST"))) {
@@ -1190,13 +1192,7 @@ public class RequestUtils {
             }
 
             // Obtain a MultipartRequestHandler
-            MultipartRequestHandler multipartHandler = getMultipartHandler(request);
-
-            // Set the multipart request handler for our ActionForm.
-            // If the bean isn't an ActionForm, an exception would have been
-            // thrown earlier, so it's safe to assume that our bean is
-            // in fact an ActionForm.
-             ((ActionForm) bean).setMultipartRequestHandler(multipartHandler);
+            multipartHandler = getMultipartHandler(request);
 
             if (multipartHandler != null) {
                 isMultipart = true;
@@ -1239,10 +1235,18 @@ public class RequestUtils {
                 }
                 stripped = stripped.substring(0, stripped.length() - suffix.length());
             }
+
+            Object parameterValue = null;
             if (isMultipart) {
-                properties.put(stripped, multipartParameters.get(name));
+                parameterValue = multipartParameters.get(name);
             } else {
-                properties.put(stripped, request.getParameterValues(name));
+                parameterValue = request.getParameterValues(name);
+            }
+
+            // Populate parameters, except "standard" struts attributes
+            // such as 'org.apache.struts.action.CANCEL'
+            if (!(stripped.startsWith("org.apache.struts."))) {
+                properties.put(stripped, parameterValue);
             }
         }
 
@@ -1251,9 +1255,18 @@ public class RequestUtils {
             BeanUtils.populate(bean, properties);
         } catch (Exception e) {
             throw new ServletException("BeanUtils.populate", e);
+        } finally {
+            if (multipartHandler != null) {
+                // Set the multipart request handler for our ActionForm.
+                // If the bean isn't an ActionForm, an exception would have been
+                // thrown earlier, so it's safe to assume that our bean is
+                // in fact an ActionForm.
+                ((ActionForm) bean).setMultipartRequestHandler(multipartHandler);
+            }
         }
 
     }
+
 
     /**
      * Try to locate a multipart request handler for this request. First, look
@@ -1361,20 +1374,20 @@ public class RequestUtils {
             HttpServletRequest request,
             MultipartRequestHandler multipartHandler) {
         Map parameters = new HashMap();
-        Enumeration enum;
+        Enumeration e;
 
         Hashtable elements = multipartHandler.getAllElements();
-        enum = elements.keys();
-        while (enum.hasMoreElements()) {
-            String key = (String) enum.nextElement();
+        e = elements.keys();
+        while (e.hasMoreElements()) {
+            String key = (String) e.nextElement();
             parameters.put(key, elements.get(key));
         }
 
         if (request instanceof MultipartRequestWrapper) {
             request = ((MultipartRequestWrapper)request).getRequest();
-            enum = request.getParameterNames();
-            while (enum.hasMoreElements()) {
-                String key = (String) enum.nextElement();
+            e = request.getParameterNames();
+            while (e.hasMoreElements()) {
+                String key = (String) e.nextElement();
                 parameters.put(key, request.getParameterValues(key));
             }
         } else {

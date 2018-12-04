@@ -103,6 +103,14 @@ public class ActionConfig implements Serializable {
      */
     protected HashMap forwards = new HashMap();
 
+    /**
+     * New attribute defined for CVE-2015-0899
+     * // Author: NTT DATA Corporation
+     * Accepted page value for multi-page validation.<br>
+     * If two or more page values are accepted, then acceptPage is set minimum of them.<br>
+     * If multi-page validation is not use, acceptPage is not set. Then multi-page validation is disabled.
+     */
+    protected Integer acceptPage = null;
 
     // ------------------------------------------------------------- Properties
 
@@ -667,6 +675,25 @@ public class ActionConfig implements Serializable {
 
     }
 
+    /**
+     * Returns accepted page value for multi-page validation.
+     *
+     * @return Accepted page value for multi-page validation
+     * @since  Struts 1.2.9-sp2
+     */
+    public Integer getAcceptPage() {
+        return acceptPage;
+    }
+
+    /**
+     * Set accepted page value for multi-page validation.
+     *
+     * @param acceptPage Accepted page value for multi-page validation
+     * @since  Struts 1.2.9-sp2
+     */
+    public void setAcceptPage(Integer acceptPage) {
+        this.acceptPage = acceptPage;
+    }
 
     /**
      * Return the form bean configurations for this application.  If there
@@ -792,6 +819,13 @@ public class ActionConfig implements Serializable {
             sb.append(",type=");
             sb.append(type);
         }
+        sb.append(",validate=");
+        sb.append(validate);
+
+        // Author: NTT DATA Corporation
+        sb.append(",acceptPage=");
+        sb.append(acceptPage);
+
         return (sb.toString());
 
     }
