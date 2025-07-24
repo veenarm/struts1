@@ -434,10 +434,10 @@ public class DefinitionsUtil extends TilesUtil implements ComponentConstants
       // This implementation is very simple.
       // It is possible to avoid creation of a new structure, but this need
       // imply writing all Map interface.
-    Enumeration enum = config.getInitParameterNames();
-    while( enum.hasMoreElements() )
+    Enumeration e = config.getInitParameterNames();
+    while( e.hasMoreElements() )
       {
-      String key = (String)enum.nextElement();
+      String key = (String) e.nextElement();
       put( key, config.getInitParameter( key ) );
       }
     }
